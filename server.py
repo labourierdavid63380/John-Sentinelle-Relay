@@ -9,6 +9,20 @@ from urllib.parse import urlsplit
 
 def digest(value): return hashlib.sha256(value.encode()).hexdigest()
 def token(): return secrets.token_urlsafe(32)
+
+def pc_token(enroll_key, pid):
+    # Stateless PC credential: survives Render restarts/redeploys as long as JOHN_ENROLL_KEY stays unchanged.
+    sig=hmac.new(enroll_key.encode(), ('john-pc-v1:'+pid).encode(), hashlib.sha256).hexdigest()
+    return f'v1.{pid}.{sig}'
+
+def verify_pc_token(enroll_key, value):
+    try:
+        version,pid,sig=value.split('.',2)
+        if version!='v1' or not pid or len(pid)>100:return None
+        expected=hmac.new(enroll_key.encode(), ('john-pc-v1:'+pid).encode(), hashlib.sha256).hexdigest()
+        return pid if hmac.compare_digest(sig,expected) else None
+    except Exception:
+        return None
 class Denied(Exception): pass
 class Store:
     def __init__(self, path, enroll_key, clock=time.time):
@@ -38,10 +52,19 @@ CREATE INDEX IF NOT EXISTS jobs_phone ON jobs(phone);
                 key=body.get('key','')
                 if not isinstance(key,str) or not hmac.compare_digest(key,self.enroll_key): raise Denied('Inscription refusée.')
                 if self.one('SELECT COUNT(*) n FROM pcs')['n']>=1000: raise Denied('Capacité du relais atteinte.')
-                pid=token(); secret=token()
+                pid=token(); secret=pc_token(self.enroll_key,pid)
                 self.db.execute('INSERT INTO pcs VALUES(?,?,?)',(pid,digest(secret),now))
                 return {'token':secret,'pc':pid}
-            pc=self.one('SELECT * FROM pcs WHERE secret=?',(digest(pc_secret),)) if pc_secret else None
+            # v1 credentials are self-verifying, so a PC remains recognized after an ephemeral DB reset.
+            pid_from_token=verify_pc_token(self.enroll_key,pc_secret) if pc_secret else None
+            if pid_from_token:
+                pc=self.one('SELECT * FROM pcs WHERE id=?',(pid_from_token,))
+                if not pc:
+                    self.db.execute('INSERT INTO pcs VALUES(?,?,?)',(pid_from_token,digest(pc_secret),now))
+                    pc=self.one('SELECT * FROM pcs WHERE id=?',(pid_from_token,))
+            else:
+                # Backward compatibility for credentials issued by older relay builds while their DB still exists.
+                pc=self.one('SELECT * FROM pcs WHERE secret=?',(digest(pc_secret),)) if pc_secret else None
             if path.startswith('/api/pc/'):
                 if not pc: raise Denied('PC non authentifié.')
                 pid=pc['id']; self.db.execute('UPDATE pcs SET seen=? WHERE id=?',(now,pid))
