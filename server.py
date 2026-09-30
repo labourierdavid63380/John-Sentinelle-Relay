@@ -106,7 +106,9 @@ CREATE INDEX IF NOT EXISTS jobs_phone ON jobs(phone);
                 return {'state':'active','pc':ph['pc'][-8:],'online':now-pc['seen']<15,'jobs':jobs}
             if path=='/api/phone/send':
                 cmd=body.get('command','')
-                if cmd not in ('heure','diagnostic'):raise Denied('Seules heure et diagnostic sont disponibles à distance.')
+                if not isinstance(cmd,str): raise Denied('Commande invalide.')
+                cmd=cmd.strip()
+                if not cmd or len(cmd)>500: raise Denied('Commande vide ou trop longue (500 caractères maximum).')
                 pc=self.one('SELECT seen FROM pcs WHERE id=?',(ph['pc'],))
                 if now-pc['seen']>=15:raise Denied('PC hors ligne ou John en pause. Réessayez lorsqu’il est connecté.')
                 if self.one("SELECT COUNT(*) n FROM jobs WHERE phone=? AND state IN ('queued','running')",(ph['id'],))['n']>=3:raise Denied('Attendez le résultat des demandes en cours.')
