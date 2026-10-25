@@ -6,12 +6,12 @@ on:
 permissions:
   contents: read
 jobs:
-  inspect:
+  build-and-test:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect existing public installer
+      - name: Restore published baseline and verify immutable archive
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -20,11 +20,42 @@ jobs:
           if ($hash -ne '211cd12c734e7d5776da181494eaffc447eab13b14d625f6ce3f8c3fd0e687a4') { throw 'Baseline archive changed' }
           Expand-Archive baseline.zip baseline
           $exe = Get-ChildItem baseline -Filter *.exe | Select-Object -First 1
-          & 'C:\Program Files\7-Zip\7z.exe' x $exe.FullName '-oexpanded' -y
+          & 'C:\Program Files\7-Zip\7z.exe' x $exe.FullName '-oexpanded' -y | Out-File extraction.log
           if ($LASTEXITCODE -ne 0) { throw 'Extraction failed' }
-          Get-ChildItem expanded -Recurse -File | Select-Object FullName,Length | Format-Table -AutoSize | Out-String -Width 300 | Set-Content inventory.txt
-          Get-Content inventory.txt
+          python windows-release/prepare_payload.py expanded
+          if ($LASTEXITCODE -ne 0) { throw 'Payload validation failed' }
+      - name: Locate NSIS compiler
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $compiler = 'C:\Program Files (x86)\NSIS\makensis.exe'
+          if (!(Test-Path $compiler)) { choco install nsis -y --no-progress; if ($LASTEXITCODE -ne 0) { throw 'NSIS install failed' } }
+          if (!(Test-Path $compiler)) { throw 'NSIS compiler not found' }
+          "NSIS_COMPILER=$compiler" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Compile and test Windows installation
+        shell: pwsh
+        run: |
+          python windows-release/test_windows_release.py 2>&1 | Tee-Object release-test.log
+          if ($LASTEXITCODE -ne 0) { throw 'Windows release tests failed' }
+      - name: Package verified installer
+        shell: pwsh
+        run: |
+          python windows-release/package_release.py
+          if ($LASTEXITCODE -ne 0) { throw 'Packaging failed' }
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
-          name: baseline-inventory
-          path: inventory.txt
+          name: PC-Sentinelle-John-34-0-3-verified
+          path: |
+            windows-release/Delivery34_0_3/PC_SENTINELLE_JOHN_34_0_3.zip
+            windows-release/Delivery34_0_3/VALIDATION.json
+          compression-level: 0
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-test-logs
+          path: |
+            release-test.log
+            extraction.log
+            windows-release/Delivery34_0_3/VALIDATION.json
