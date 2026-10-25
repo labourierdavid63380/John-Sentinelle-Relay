@@ -9,8 +9,7 @@ OutFile "Delivery34_0_3\PC_Sentinelle_John_Setup_34_0_3.exe"
 InstallDir "$LOCALAPPDATA\Programs\PCSentinelleSuite-34.0.2"
 InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "InstallLocation"
 RequestExecutionLevel user
-SetCompressor /SOLID lzma
-SetCompressorDictSize 32
+SetCompressor /SOLID zlib
 CRCCheck force
 Icon "SuitePayload\John\assets\john_v25.ico"
 VIProductVersion "34.0.3.0"
