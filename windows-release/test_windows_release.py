@@ -8,13 +8,20 @@ import tempfile
 import time
 import winreg
 
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 HERE = Path(__file__).resolve().parent
 PAYLOAD = HERE/'SuitePayload'
 RESULTS = {}
 
 def run(args, timeout=120, **kwargs):
     result = subprocess.run([str(x) for x in args], capture_output=True, timeout=timeout, **kwargs)
-    output = (result.stdout+result.stderr).decode('utf-8', errors='replace')
+    raw = result.stdout+result.stderr
+    try:
+        output = raw.decode('utf-8')
+    except UnicodeDecodeError:
+        output = raw.decode('cp1252', errors='replace')
     print(output, flush=True)
     if result.returncode:
         raise RuntimeError('Command failed (%d): %s\n%s' % (result.returncode, args[0], output))
