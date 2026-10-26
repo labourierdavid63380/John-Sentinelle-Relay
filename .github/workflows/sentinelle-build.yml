@@ -45,10 +45,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: PC-Sentinelle-John-34-0-3-verified
+          name: PC-Sentinelle-John-34-0-4-verified
           path: |
-            windows-release/Delivery34_0_3/PC_SENTINELLE_JOHN_34_0_3.zip
-            windows-release/Delivery34_0_3/VALIDATION.json
+            windows-release/Delivery34_0_4/PC_SENTINELLE_JOHN_34_0_4.zip
+            windows-release/Delivery34_0_4/VALIDATION.json
           compression-level: 0
           retention-days: 30
       - uses: actions/upload-artifact@v4
@@ -58,4 +58,4 @@ jobs:
           path: |
             release-test.log
             extraction.log
-            windows-release/Delivery34_0_3/VALIDATION.json
+            windows-release/Delivery34_0_4/VALIDATION.json

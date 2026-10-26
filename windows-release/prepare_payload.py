@@ -40,5 +40,5 @@ dirs = sorted({p.parent for p in files if str(p.parent) != '.'}, key=lambda p:le
 delete = ['Delete "$INSTDIR\\'+str(p).replace('/', '\\')+'"' for p in files]
 remove = ['RMDir "$INSTDIR\\'+str(p).replace('/', '\\')+'"' for p in dirs]
 (HERE/'uninstall_files.nsh').write_text('\n'.join(delete+remove)+'\n', encoding='utf-8-sig')
-(HERE/'Delivery34_0_3').mkdir(exist_ok=True)
+(HERE/'Delivery34_0_4').mkdir(exist_ok=True)
 print('PAYLOAD_OK:', len(expected), 'protected files;', len(pc), 'PC files preserved')

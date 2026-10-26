@@ -25,7 +25,7 @@ def verify():
             raise RuntimeError('Composant absent : ' + rel)
     os.environ['TCL_LIBRARY'] = str(ROOT / 'runtime/tcl/tcl8.6')
     os.environ['TK_LIBRARY'] = str(ROOT / 'runtime/tcl/tk8.6')
-    import tkinter, sqlite3, pc_skills, ssl, psutil, win32api, pythoncom, mcp, openai_planner, john_connexion
+    import tkinter, sqlite3, pc_skills, ssl, psutil, win32api, pythoncom, mcp, plugin_connection
     if not tkinter.Tcl().eval('info patchlevel'):
         raise RuntimeError('Le moteur Tcl ne répond pas.')
     for query, tag in [('mon Internet rame', 'booster'), ('restaurer le nettoyage', 'restoreTemp'),

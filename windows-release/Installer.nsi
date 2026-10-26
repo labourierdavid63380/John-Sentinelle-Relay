@@ -4,26 +4,26 @@ Unicode true
 !include "x64.nsh"
 !include "WinVer.nsh"
 !include "Sections.nsh"
-Name "PC Sentinelle et John 34.0.3"
-OutFile "Delivery34_0_3\PC_Sentinelle_John_Setup_34_0_3.exe"
+Name "PC Sentinelle et John 34.0.4"
+OutFile "Delivery34_0_4\PC_Sentinelle_John_Setup_34_0_4.exe"
 InstallDir "$LOCALAPPDATA\Programs\PCSentinelleSuite-34.0.2"
 InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "InstallLocation"
 RequestExecutionLevel user
 SetCompressor /SOLID zlib
 CRCCheck force
 Icon "SuitePayload\John\assets\john_v25.ico"
-VIProductVersion "34.0.3.0"
+VIProductVersion "34.0.4.0"
 VIAddVersionKey /LANG=1036 "ProductName" "PC Sentinelle et John"
-VIAddVersionKey /LANG=1036 "FileDescription" "Installation autonome PC Sentinelle et John avec connexion IA"
-VIAddVersionKey /LANG=1036 "FileVersion" "34.0.3"
+VIAddVersionKey /LANG=1036 "FileDescription" "Installation autonome PC Sentinelle et John avec plugin ChatGPT"
+VIAddVersionKey /LANG=1036 "FileVersion" "34.0.4"
 VIAddVersionKey /LANG=1036 "LegalCopyright" "Projet Sentinelle"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TEXT "Cet assistant installe PC Sentinelle et John, avec leurs moteurs inclus.$\r$\n$\r$\nLa connexion IA utilise votre clé API personnelle. Aucun mot de passe ChatGPT n'est demandé.$\r$\n$\r$\nLes crédits API sont distincts de l'abonnement ChatGPT. Les outils locaux restent accessibles sans IA."
+!define MUI_WELCOMEPAGE_TEXT "Cet assistant installe PC Sentinelle et John, avec leurs moteurs inclus.$\r$\n$\r$\nLe bouton Connecter ChatGPT configure la passerelle du plugin John.$\r$\n$\r$\nDonnez vos demandes dans ChatGPT. Les outils locaux restent accessibles dans John."
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\John.exe"
-!define MUI_FINISHPAGE_RUN_TEXT "Afficher John et sa configuration IA"
+!define MUI_FINISHPAGE_RUN_TEXT "Afficher John et sa connexion au plugin"
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
@@ -60,8 +60,8 @@ Section "PC Sentinelle + John (moteurs inclus)" Main
   SetOutPath "$INSTDIR"
   File /r "SuitePayload\*"
   WriteUninstaller "$INSTDIR\Desinstaller.exe"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "DisplayName" "PC Sentinelle et John 34.0.3"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "DisplayVersion" "34.0.3"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "DisplayName" "PC Sentinelle et John 34.0.4"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "DisplayVersion" "34.0.4"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "UninstallString" '$\"$INSTDIR\Desinstaller.exe$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCSentinelleSuite3402" "DisplayIcon" "$INSTDIR\PC\PC_Sentinelle_V32.exe"

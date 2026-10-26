@@ -43,17 +43,12 @@ def check_ui_and_key(root):
     run([py, '-I', root/'John/verify_install.py', '--gui'])
     with tempfile.TemporaryDirectory(prefix='JohnDPAPI-') as folder:
         env = dict(os.environ, LOCALAPPDATA=folder)
-        run([py, '-c', "import john_connexion as c;c.save_key('test-not-a-real-key');assert c.load_key()=='test-not-a-real-key';print('DPAPI_ROUNDTRIP_OK')"], cwd=root/'John', env=env)
+        run([py, '-c', "from plugin_connection import save_connection;from john_v13.storage import load_secrets;save_connection('tunnel_test123456','test-not-a-real-key');assert load_secrets()['api_key']=='test-not-a-real-key';print('TUNNEL_DPAPI_ROUNDTRIP_OK')"], cwd=root/'John', env=env)
     code = """import suite_john as s
 b=s.Bubble.__new__(s.Bubble)
-b.ai_history=[]
-b.messages=__import__("queue").Queue()
 assert 'Bonjour' in b.handle_request('bonjour John')
-s.load_key=lambda:'test-not-a-real-key'
-def fail(*a,**k): raise s.PlannerError('Quota OpenAI atteint')
-s.ask=fail
-assert 'Quota' in b.handle_request('Comment vas-tu ?')['message']
-print('GREETING_AND_READABLE_API_ERROR_OK')
+assert s.CompanionRuntime.__name__ == 'Connection'
+print('GREETING_AND_PLUGIN_MODE_OK')
 """
     run([py, '-c', code], cwd=root/'John')
 
@@ -64,8 +59,8 @@ def registry_version():
 def main():
     if os.name != 'nt' or os.environ.get('CI','').lower() != 'true':
         raise SystemExit('Disposable Windows CI runner required.')
-    run([sys.executable, HERE/'test_planner.py'])
-    RESULTS['planner_unit_tests'] = 8
+    run([sys.executable, HERE/'test_plugin_connection.py'])
+    RESULTS['plugin_connection_unit_tests'] = 7
     RESULTS['protected_components'] = check_files(PAYLOAD)
     check_ui_and_key(PAYLOAD)
     RESULTS['bundled_runtime_ui_and_dpapi'] = True
@@ -77,11 +72,11 @@ def main():
     (HERE/'uninstall_files.nsh').write_text('\n'.join(lines)+'\n', encoding='utf-8-sig')
     compiler = os.environ['NSIS_COMPILER']
     run([compiler, '/V3', HERE/'Installer.nsi'], cwd=HERE, timeout=600)
-    exe = HERE/'Delivery34_0_3/PC_Sentinelle_John_Setup_34_0_3.exe'
+    exe = HERE/'Delivery34_0_4/PC_Sentinelle_John_Setup_34_0_4.exe'
     assert exe.is_file()
     target = Path('C:/SentinelleReleaseTest')
     run([exe, '/S', '/D='+str(target)], timeout=240)
-    assert registry_version() == '34.0.3'
+    assert registry_version() == '34.0.4'
     check_files(target)
     check_ui_and_key(target)
     RESULTS['fresh_install'] = True
@@ -134,10 +129,11 @@ def main():
     assert not (target/'PC/PC_Sentinelle_V32.exe').exists(), 'Uninstall did not remove program'
     assert keep.read_text() == 'preserve-user-data'
     RESULTS['uninstall_preserves_personal_data'] = True
-    RESULTS['api_live_generation'] = 'not validated: previous request returned HTTP 429 quota/rate limit'
+    RESULTS['plugin_live_connection'] = 'not validated by CI; user tunnel credentials are never included'
+    RESULTS['paid_api_dialogue_required'] = False
     RESULTS['personal_api_key_included'] = False
-    RESULTS['suite_version'] = '34.0.3'
-    RESULTS['john_companion_version'] = '33.0.5'
+    RESULTS['suite_version'] = '34.0.4'
+    RESULTS['john_companion_version'] = '33.0.6'
     (exe.parent/'VALIDATION.json').write_text(json.dumps(RESULTS, indent=2), encoding='utf-8')
     print(json.dumps(RESULTS, indent=2))
 

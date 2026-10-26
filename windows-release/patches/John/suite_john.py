@@ -14,25 +14,12 @@ from tkinter import ttk,scrolledtext
 from john_v13 import gui
 from john_v13.client import request
 from pc_skills import select,run,follow,choose,CATALOG
-from openai_planner import ask, needs_planner, PlannerError
-from john_connexion import load_key
-OriginalRuntime=gui.Runtime
-class CompanionRuntime:
- def __init__(self):self.owned=None;self.last_error='';self.connected=False
- def start(self):
-  try:
-   if request().get('ok'):
-    self.connected=True;return
-  except Exception:pass
-  self.owned=OriginalRuntime()
-  self.owned.start();self.last_error=self.owned.last_error
-  try:self.connected=bool(request().get('ok'))
-  except Exception:pass
- def close(self):
-  if self.owned:self.owned.close()
+from plugin_connection import Connection, save_connection
+from john_v13.storage import load_secrets, DATA
+CompanionRuntime=Connection
 class Bubble(gui.App):
  def __init__(self,root):
-  self.last_pc_result=None;self.history=[];self.ai_history=[];super().__init__(root);root.title('John — PC Sentinelle V33.0.5')
+  self.last_pc_result=None;self.history=[];super().__init__(root);root.title('John — PC Sentinelle V33.0.6')
   self.canvas.pack_forget();self.canvas.place(relx=1,rely=1,anchor='se',width=200,height=230)
   self.canvas.unbind('<Button-1>');self.canvas.bind('<ButtonPress-1>',self.press)
   self.canvas.bind('<ButtonRelease-1>',self.release)
@@ -46,14 +33,14 @@ class Bubble(gui.App):
   if self.panel is not None:self.panel.destroy();self.panel=None;self.reshape(200,230);return
   self.reshape(540,565);self.panel=ttk.Frame(self.root,padding=12);self.panel.place(x=0,y=0,width=540,height=335)
   top=ttk.Frame(self.panel);top.pack(fill='x');ttk.Label(top,text='John • PC Sentinelle',font=('Segoe UI',14,'bold')).pack(side='left');ttk.Button(top,text='Réduire',command=self.toggle_panel).pack(side='right')
-  ttk.Label(self.panel,text='Discussion IA, outils PC et réception de fichiers').pack(anchor='w')
+  ttk.Label(self.panel,text='Plugin ChatGPT, outils PC et réception de fichiers').pack(anchor='w')
   self.out=scrolledtext.ScrolledText(self.panel,height=7,wrap='word',font=('Segoe UI',10));self.out.pack(fill='both',expand=True,pady=6)
   for line in self.history:self.out.insert('end',line+'\n\n')
   row=ttk.Frame(self.panel);row.pack(fill='x');self.entry=ttk.Entry(row);self.entry.pack(side='left',fill='x',expand=True);self.entry.bind('<Return>',lambda e:self.command());ttk.Button(row,text='Envoyer',command=self.command).pack(side='left')
   row=ttk.Frame(self.panel);row.pack(fill='x',pady=4)
   for label,fn in [('PC Sentinelle',self.pc),('Diagnostic',lambda:self.pc_tool('diagnostic')),('Réparer',lambda:self.pc_tool('repairOneClick')),('Mes outils',self.catalog)]:ttk.Button(row,text=label,command=fn).pack(side='left',expand=True,fill='x')
   row=ttk.Frame(self.panel);row.pack(fill='x')
-  for label,fn in [('Téléphone → PC',lambda:self.transfer('photo/JohnPhoto.exe')),('Connexion IA',self.configure_ai),('Fichiers transférés',self.folder)]:ttk.Button(row,text=label,command=fn).pack(side='left',expand=True,fill='x')
+  for label,fn in [('Téléphone → PC',lambda:self.transfer('photo/JohnPhoto.exe')),('Connecter ChatGPT',self.configure_plugin),('Fichiers transférés',self.folder)]:ttk.Button(row,text=label,command=fn).pack(side='left',expand=True,fill='x')
  def show(self,value):
   if isinstance(value,dict) and value.get('report_path'):
    self.last_pc_result=value.get('tool_result',value)
@@ -85,26 +72,39 @@ class Bubble(gui.App):
      return follow(self.last_pc_result['report_path'],action,choose(self.last_pc_result,target),self.messages.put)
     self.work(selected_action);return
   self.work(lambda:self.handle_request(text))
- def configure_ai(self):
-  subprocess.Popen([str(ROOT/'runtime/pythonw.exe'),str(ROOT/'john_connexion.py')],cwd=ROOT)
-  self.show('Configuration IA ouverte. La clé API est personnelle et chiffrée par Windows ; aucun mot de passe ChatGPT demandé.')
+ def configure_plugin(self):
+  if getattr(self,'connection_window',None) is not None and self.connection_window.winfo_exists():
+   self.connection_window.lift();return
+  from tkinter import messagebox
+  import webbrowser
+  w=tk.Toplevel(self.root);self.connection_window=w;w.title('Connecter John au plugin ChatGPT');w.geometry('640x420')
+  f=ttk.Frame(w,padding=16);f.pack(fill='both',expand=True)
+  ttk.Label(f,text='Connexion au plugin ChatGPT',font=('Segoe UI',14,'bold')).pack(anchor='w')
+  ttk.Label(f,text='Donnez vos demandes dans ChatGPT : John les exécute sur ce PC.\nLa bulle conserve les commandes locales. Aucune clé de dialogue IA requise.',wraplength=600).pack(anchor='w',pady=8)
+  ttk.Button(f,text='Ouvrir les paramètres des tunnels',command=lambda:webbrowser.open('https://platform.openai.com/settings/organization/tunnels')).pack(anchor='w')
+  ttk.Label(f,text='Identifiant du tunnel').pack(anchor='w',pady=(10,0))
+  tid=ttk.Entry(f);tid.pack(fill='x');tid.insert(0,load_secrets().get('tunnel_id',''))
+  ttk.Label(f,text='Clé runtime du tunnel — laisser vide pour garder la clé enregistrée').pack(anchor='w',pady=(8,0))
+  secret=ttk.Entry(f,show='•');secret.pack(fill='x')
+  ttk.Label(f,text='La clé reste chiffrée par Windows. Ne la partagez pas dans une conversation.\nPermissions requises : Tunnels Read + Use. Une clé expirée doit être remplacée.',wraplength=600).pack(anchor='w',pady=8)
+  state=ttk.Label(f,text='');state.pack(anchor='w')
+  def save():
+   try:save_connection(tid.get(),secret.get())
+   except ValueError as exc:messagebox.showerror('Connexion',str(exc),parent=w);return
+   except Exception:messagebox.showerror('Connexion','Enregistrement impossible. Vérifiez le compte Windows.',parent=w);return
+   secret.delete(0,'end');state.configure(text='Configuration enregistrée ; vérification du tunnel…')
+   self.work(lambda:(self.runtime.reconnect(),self.runtime.state)[1])
+  ttk.Button(f,text='Enregistrer et connecter',command=save).pack(anchor='w',pady=5)
+  ttk.Button(f,text='Ouvrir ChatGPT',command=lambda:webbrowser.open('https://chatgpt.com/')).pack(anchor='w')
+  ttk.Button(f,text='Ouvrir le journal local',command=lambda:os.startfile(str(DATA))).pack(anchor='w',pady=5)
  def handle_request(self,text):
   if text.strip().lower() in ('bonjour','bonjour john','salut','salut john','bonsoir','coucou'):
    return 'Bonjour ! Je suis là. Que puis-je faire pour vous ?'
-  key=load_key()
-  if key:
-   try:
-    result=ask(text,key,CATALOG,lambda tag:run(tag,self.messages.put),self.ai_history)
-   except PlannerError as exc:
-    return {'ok':False,'message':str(exc)}
-   self.ai_history.extend([{'role':'user','content':text},{'role':'assistant','content':result.get('message','')}])
-   self.ai_history=self.ai_history[-12:]
-   return result
   tag=select(text)
   if tag:return run(tag,self.messages.put)
   result=gui.executer_demande(text)
-  if needs_planner(result):
-   return {'ok':False,'message':'Cette demande nécessite l’IA. Cliquez sur Connexion IA pour la configurer.'}
+  if isinstance(result,dict) and (result.get('need_chatgpt_planner') or result.get('needs_chatgpt_planner')):
+   return {'ok':False,'message':'Pour cette demande, écrivez à John dans ChatGPT avec le plugin John Sentinelle activé.'}
   return result
  def pc_tool(self,tag):self.work(lambda:run(tag,self.messages.put))
  def pc(self):
@@ -158,11 +158,20 @@ def main():
   app.toggle_panel();root.update();assert app.panel.winfo_toplevel()==root
   assert not any(isinstance(w,tk.Toplevel) for w in root.winfo_children())
   assert app.canvas.winfo_width()==200
+  app.configure_plugin();root.update();assert app.connection_window.winfo_exists()
+  app.connection_window.destroy()
   app.toggle_panel();root.update();assert root.winfo_width()==200 and root.winfo_height()==230
   root.destroy();print('SUITE_KNIGHT_SINGLE_BUBBLE_OK');return
- app.show('John V33.0.5 est ouvert. Exemples : bonjour John, diagnostic, mon Internet rame. Connexion IA permet de configurer votre clé personnelle.')
- if not smoke and not load_key():
+ app.show('John V33.0.6 est ouvert. Donnez vos demandes dans ChatGPT avec le plugin John Sentinelle. Les outils locaux restent accessibles ici.')
+ if not smoke:
   app.toggle_panel()
-  app.show('Première connexion : cliquez sur Connexion IA pour activer les réponses OpenAI. Les outils PC restent utilisables sans IA.')
+  app.show('Connecter ChatGPT configure le tunnel du plugin. Aucune clé personnelle n’est incluse dans l’installateur.')
+  def connection_status():
+   if app.panel is not None:
+    text=app.runtime.state+' — confirmation finale : demandez un test dans ChatGPT.'
+    if getattr(app,'last_connection_state',None)!=text:
+     app.last_connection_state=text;app.show(text)
+   root.after(3000,connection_status)
+  root.after(1000,connection_status)
  root.mainloop()
 if __name__=='__main__':main()
