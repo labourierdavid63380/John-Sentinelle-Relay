@@ -84,6 +84,10 @@ def main():
     # Check actual .lnk targets on the runner's redirected Desktop.
     output = run([ps, '-NoProfile', '-Command', "$s=New-Object -ComObject WScript.Shell;$d=[Environment]::GetFolderPath('Desktop');foreach($n in @('PC Sentinelle.lnk','John Sentinelle.lnk')){$p=Join-Path $d $n;if(!(Test-Path $p)){throw 'Shortcut missing'};$l=$s.CreateShortcut($p);if(!(Test-Path $l.TargetPath)){throw 'Target missing'};Write-Output $l.TargetPath}"])
     RESULTS['desktop_shortcuts'] = True
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Run') as key:
+        startup = winreg.QueryValueEx(key, 'JohnPCSentinelle3402')[0]
+    assert startup == '"'+str(target/'John.exe').replace('/', '\\')+'"', startup
+    RESULTS['windows_session_autostart'] = True
     # Unrelated use of bundled Python must prevent overwriting, without termination.
     unrelated = subprocess.Popen([str(python_at(target)), '-c', 'import time;time.sleep(120)'])
     try:

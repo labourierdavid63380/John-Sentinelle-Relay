@@ -164,7 +164,6 @@ def main():
   root.destroy();print('SUITE_KNIGHT_SINGLE_BUBBLE_OK');return
  app.show('John V33.0.6 est ouvert. Donnez vos demandes dans ChatGPT avec le plugin John Sentinelle. Les outils locaux restent accessibles ici.')
  if not smoke:
-  app.toggle_panel()
   app.show('Connecter ChatGPT configure le tunnel du plugin. Aucune clé personnelle n’est incluse dans l’installateur.')
   def connection_status():
    if app.panel is not None:
@@ -173,5 +172,8 @@ def main():
      app.last_connection_state=text;app.show(text)
    root.after(3000,connection_status)
   root.after(1000,connection_status)
+  if not load_secrets().get('tunnel_id'):
+   app.toggle_panel()
+   root.after(500,app.configure_plugin)
  root.mainloop()
 if __name__=='__main__':main()
